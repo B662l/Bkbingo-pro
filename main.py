@@ -40,15 +40,39 @@ generate_sample_cards()
 def index():
     return render_template('index.html')
 
+@socketio.on('register_user')
+def handle_register(data):
+    uid = data.get('user_id', 12345)
+    name = data.get('name', 'Player')
+    phone = data.get('phone', '')
+    
+    with db_lock:
+        if uid not in users_db:
+            users_db[uid] = {"id": uid, "name": name, "phone": phone, "balance": 0.0, "history": []}
+            emit('auth_response', {'status': 'success', 'message': 'በተሳካ ሁኔታ ተመዝግበዋል!', 'balance': 0.0}, room=request.sid)
+        else:
+            emit('auth_response', {'status': 'success', 'message': 'እንኳን ደህና መጡ!', 'balance': users_db[uid]["balance"]}, room=request.sid)
+
+@socketio.on('login_user')
+def handle_login(data):
+    phone = data.get('phone')
+    with db_lock:
+        for uid, user in users_db.items():
+            if user["phone"] == phone:
+                emit('auth_response', {'status': 'success', 'user_id': uid, 'balance': user["balance"]}, room=request.sid)
+                return
+        # ለሙከራ እንዲመች ከሌለ በራስ ሰር ይፈጥራል
+        new_uid = random.randint(10000, 99999)
+        users_db[new_uid] = {"id": new_uid, "name": "User", "phone": phone, "balance": 0.0, "history": []}
+        emit('auth_response', {'status': 'success', 'user_id': new_uid, 'balance': 0.0}, room=request.sid)
+
 @socketio.on('get_user_balance')
 def handle_get_balance(data):
     uid = data.get('user_id', 12345)
-    balance = 100.0
+    balance = 0.0
     with db_lock:
         if uid in users_db:
             balance = users_db[uid]["balance"]
-        else:
-            users_db[uid] = {"id": uid, "name": "Player", "balance": balance, "history": []}
     emit('balance_update', {'balance': balance})
 
 @socketio.on('submit_deposit')
@@ -64,9 +88,9 @@ def handle_submit_deposit(data):
             users_db[uid]["history"].append(f"Deposit: +{amount} ETB via {method} (Tx: {tx_id})")
             new_balance = users_db[uid]["balance"]
             emit('balance_update', {'balance': new_balance}, room=request.sid)
-            emit('deposit_response', {'status': 'success', 'message': 'ክፍያዎ በተሳካ ሁኔታ ተመዝግቧል!', 'balance': new_balance})
+            emit('deposit_response', {'status': 'success', 'message': 'ክፍያዎ ተረጋገጠ! አሁን መጫወት ይችላሉ።', 'balance': new_balance})
         else:
-            emit('deposit_response', {'status': 'error', 'message': 'ተጠቃሚው አልተገኘም!'})
+            emit('deposit_response', {'status': 'error', 'message': 'እባክዎ መጀመሪያ ይግቡ!'})
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -75,35 +99,31 @@ def send_welcome(message):
     
     with db_lock:
         if uid not in users_db:
-            users_db[uid] = {"id": uid, "name": name, "balance": 100.0, "history": []}
+            users_db[uid] = {"id": uid, "name": name, "phone": "", "balance": 0.0, "history": []}
 
     markup = telebot.types.InlineKeyboardMarkup()
     web_app = telebot.types.WebAppInfo(url=WEBAPP_URL)
-    markup.add(telebot.types.InlineKeyboardButton("🎮 BKBINGO PRO ጀምር", web_app=web_app))
-    markup.add(telebot.types.InlineKeyboardButton("💰 አካውንት መሙላት (Deposit)", callback_data="deposit_info"))
+    markup.add(telebot.types.InlineKeyboardButton("🎲 ጨዋታ ጀምር (Open App)", web_app=web_app))
+    markup.add(telebot.types.InlineKeyboardButton("👤 ፕሮፋይል / ባለንብረት", callback_data="profile_info"))
+    markup.add(telebot.types.InlineKeyboardButton("💰 ዲፖዚት (Deposit)", callback_data="deposit_info"))
     markup.add(telebot.types.InlineKeyboardButton("🎧 የደንበኛ አገልግሎት (Support)", url="https://t.me/BkbingosupportBot"))
 
-    bot.send_message(message.chat.id, f"ሰላም <b>{name}</b>! ወደ <b>BKBINGO PRO</b> በደህና መጡ።", parse_mode="HTML", reply_markup=markup)
+    bot.send_message(message.chat.id, f"👋 ሰላም <b>{name}</b>!\n\nወደ <b>BKBIngo House</b> ድንቅ የቢንጎ መድረክ በደህና መጡ 🎲\n💰 ባለንብረት:- {users_db[uid]['balance']} ETB\n\nለመጫወት ከታች ያለውን '🎲 ጨዋታ ጀምር' የሚለውን ይጫኑ።", parse_mode="HTML", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "deposit_info")
 def callback_deposit(call):
     deposit_text = (
         "💳 <b>አካውንት ለመሙላት (Deposit)፦</b>\n\n"
-        "🔹 <b>ቴሌብር (Telebirr):</b> 0912345678 (Biruk Reta)\n"
-        "🔹 <b>ንግድ ባንክ (CBE):</b> 1000123456789 (Biruk Reta)\n\n"
-        "ብር ከላኩ በኋላ የትራንዛክሽን ቁጥሩን በመተግበሪያው ውስጥ ባለው የዲፖዚት ፎርም በመሙላት አካውንትዎን ማفረስት ይችላሉ!"
+        "🔹 <b>ቴሌብር (Telebirr):</b> 09xxxxxxxx (Biruk Reta)\n"
+        "🔹 <b>ንግድ ባንክ (CBE):</b> 1000xxxxxxxxxx (Biruk Reta)\n\n"
+        "ብር ከላኩ በኋላ በመተግበሪያው ውስጥ በዲፖዚት ፎርም በማስገባት አካውንትዎን ማفረስት ይችላሉ!"
     )
     bot.answer_callback_query(call.id)
     bot.send_message(call.message.chat.id, deposit_text, parse_mode="HTML")
 
 @support_bot.message_handler(commands=['start'])
 def support_welcome(message):
-    name = message.from_user.first_name
-    support_bot.send_message(
-        message.chat.id, 
-        f"ሰላም <b>{name}</b>! ወደ <b>BKBINGO PRO</b> የደንበኛ እርዳታ ማዕከል በሰላም መጡ። ጥያቄዎን ወይም ያጋጠመዎትን ችግር ይጻፉልን።", 
-        parse_mode="HTML"
-    )
+    support_bot.send_message(message.chat.id, "ሰላም! የ BKBINGO PRO የደንበኛ እርዳታ ማዕከል ነን። እንዴት ልንረዳዎ እንችላለን?", parse_mode="HTML")
 
 if __name__ == '__main__':
     bot_thread = Thread(target=lambda: bot.infinity_polling(none_stop=True))
