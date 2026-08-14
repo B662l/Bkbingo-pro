@@ -1,12 +1,10 @@
 import os
-import time
 import random
 from threading import Thread, Lock
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 import telebot
 
-# የቦት ቶከኖችዎን እዚህ ያስገቡ
 BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 SUPPORT_BOT_TOKEN = "YOUR_SUPPORT_BOT_TOKEN"
 
@@ -55,14 +53,13 @@ def handle_get_balance(data):
 
 @socketio.on('submit_deposit')
 def handle_submit_deposit(data):
-    uid = data.get('user_id')
+    uid = data.get('user_id', 12345)
     amount = float(data.get('amount', 0))
     tx_id = data.get('tx_id', '')
     method = data.get('method', 'Telebirr')
     
     with db_lock:
         if uid in users_db:
-            # ለጊዜው ክፍያው እንደደረሰ ገቢ በማድረግ ማስተካከል ይቻላል (ወይም በ Admin ማረጋገጫ)
             users_db[uid]["balance"] += amount
             users_db[uid]["history"].append(f"Deposit: +{amount} ETB via {method} (Tx: {tx_id})")
             new_balance = users_db[uid]["balance"]
@@ -94,28 +91,25 @@ def callback_deposit(call):
         "💳 <b>አካውንት ለመሙላት (Deposit)፦</b>\n\n"
         "🔹 <b>ቴሌብር (Telebirr):</b> 0912345678 (Biruk Reta)\n"
         "🔹 <b>ንግድ ባንክ (CBE):</b> 1000123456789 (Biruk Reta)\n\n"
-        "ብር ከላኩ በኋላ የትራንዛክሽን ቁጥሩን (Transaction ID) እና ስምዎን በመተግበሪያው (Mini App) ውስጥ ባለው የዲፖዚት ፎርም በመሙላት አካውንትዎን ማفረስት ይችላሉ!"
+        "ብር ከላኩ በኋላ የትራንዛክሽን ቁጥሩን በመተግበሪያው ውስጥ ባለው የዲፖዚት ፎርም በመሙላት አካውንትዎን ማفረስት ይችላሉ!"
     )
     bot.answer_callback_query(call.id)
     bot.send_message(call.message.chat.id, deposit_text, parse_mode="HTML")
 
-# የ Support Bot መልዕክቶችን ማስተናገጃ
 @support_bot.message_handler(commands=['start'])
 def support_welcome(message):
     name = message.from_user.first_name
     support_bot.send_message(
         message.chat.id, 
-        f"ሰላም <b>{name}</b>! ወደ <b>BKBINGO PRO</b> የደንበኛ እርዳታ ማዕከል በሰላም መጡ። ጥያቄዎን ወይም ያጋጠመዎትን ችግር ይጻፉልን፣ ወዲያውኑ ምላሽ እንሰጣለን።", 
+        f"ሰላም <b>{name}</b>! ወደ <b>BKBINGO PRO</b> የደንበኛ እርዳታ ማዕከል በሰላም መጡ። ጥያቄዎን ወይም ያጋጠመዎትን ችግር ይጻፉልን።", 
         parse_mode="HTML"
     )
 
 if __name__ == '__main__':
-    # ዋናውን ቦት ማሰኬጃ ቴሬድ
     bot_thread = Thread(target=lambda: bot.infinity_polling(none_stop=True))
     bot_thread.daemon = True
     bot_thread.start()
     
-    # የ Support ቦት ማሰኬጃ ቴሬድ
     support_thread = Thread(target=lambda: support_bot.infinity_polling(none_stop=True))
     support_thread.daemon = True
     support_thread.start()
