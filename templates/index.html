@@ -9,18 +9,15 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
         body { background-color: #121212; color: #ffffff; padding-bottom: 70px; }
         
-        /* Header */
         .header { background: #1e1e1e; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
         .logo { font-size: 20px; font-weight: bold; color: #2ecc71; }
         .user-balance { background: #2c3e50; padding: 8px 15px; border-radius: 20px; font-size: 14px; color: #f39c12; cursor: pointer; }
 
-        /* Action Buttons (Deposit / Withdraw) */
         .action-buttons { display: flex; gap: 10px; padding: 15px; }
         .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; text-align: center; }
         .btn-deposit { background-color: #2ecc71; color: #fff; }
         .btn-withdraw { background-color: #2c3e50; color: #fff; border: 1px solid #444; }
 
-        /* Main Game Area */
         .game-container { padding: 15px; text-align: center; }
         .current-number { font-size: 32px; color: #2ecc71; margin: 15px 0; font-weight: bold; background: #1e1e1e; padding: 15px; border-radius: 12px; border: 1px solid #333; }
         
@@ -28,7 +25,6 @@
         .cell { background: #1e1e1e; border: 1px solid #333; padding: 18px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: 0.2s; color: #fff; }
         .cell.selected { background: #2ecc71; color: #121212; font-weight: bold; transform: scale(1.05); }
 
-        /* Profile Sidebar / Modal */
         .sidebar { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: #1a1a1a; box-shadow: -5px 0 15px rgba(0,0,0,0.7); transition: 0.3s; z-index: 1000; padding: 20px; border-left: 1px solid #333; }
         .sidebar.open { right: 0; }
         .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #333; padding-bottom: 15px; }
@@ -42,7 +38,6 @@
         .menu-item:hover { color: #2ecc71; }
         .menu-item.logout { color: #e74c3c; margin-top: 20px; border: none; font-weight: bold; }
 
-        /* Bottom Navigation Bar */
         .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #181818; display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #333; z-index: 999; }
         .nav-item { text-align: center; color: #aaa; font-size: 12px; cursor: pointer; text-decoration: none; background: none; border: none; }
         .nav-item.active { color: #2ecc71; }
@@ -51,25 +46,21 @@
 </head>
 <body>
 
-    <!-- Header -->
     <div class="header">
         <div class="logo">bkbingo pro</div>
-        <div class="user-balance" onclick="toggleProfile()">ብር 0.00 👤</div>
+        <div class="user-balance" id="wallet-balance" onclick="toggleProfile()">ብር 100.00 👤</div>
     </div>
 
-    <!-- Deposit & Withdraw Buttons -->
     <div class="action-buttons">
-        <button class="btn btn-deposit" onclick="alert('የክፍያ (Deposit) ገጽ በቴሌብሪር እና ሲቢኢ ይከፈታል')">Deposit</button>
+        <button class="btn btn-deposit" onclick="makeDeposit()">Deposit</button>
         <button class="btn btn-withdraw" onclick="alert('የገንዘብ ማውጣት (Withdraw) ጥያቄ')">Withdraw</button>
     </div>
 
-    <!-- Game Display -->
     <div class="game-container">
         <div class="current-number" id="latest-call">የተጠራ ቁጥር: --</div>
         <div class="board" id="bingo-board"></div>
     </div>
 
-    <!-- Profile Sidebar (እንደ Hulusport ሜኑ) -->
     <div class="sidebar" id="profileSidebar">
         <div class="sidebar-header">
             <h3>መግቢያ / አካውንት</h3>
@@ -80,7 +71,7 @@
             <div class="profile-avatar">👤</div>
             <div>
                 <div style="font-weight: bold; color: #fff;">ተጠቃሚ</div>
-                <div style="font-size: 13px; color: #aaa;">+2519xxxxxxxx</div>
+                <div style="font-size: 13px; color: #aaa;">@bkbingo_user</div>
             </div>
         </div>
 
@@ -88,13 +79,11 @@
             <li class="menu-item" onclick="alert('My Profile')"><span>👤 My Profile</span> <span>›</span></li>
             <li class="menu-item" onclick="alert('Wallet')"><span>💳 Wallet</span> <span>›</span></li>
             <li class="menu-item" onclick="alert('Transactions')"><span>🔄 Transactions</span> <span>›</span></li>
-            <li class="menu-item" onclick="alert('Bet History')"><span>🕒 Game History</span> <span>›</span></li>
-            <li class="menu-item" onclick="alert('Promotions')"><span>🎁 Promotions</span> <span>›</span></li>
+            <li class="menu-item" onclick="alert('Game History')"><span>🕒 Game History</span> <span>›</span></li>
             <li class="menu-item logout" onclick="alert('ውጣ (Log Out)')"><span>🚪 Log Out</span></li>
         </ul>
     </div>
 
-    <!-- Bottom Navigation Bar -->
     <div class="nav-bar">
         <button class="nav-item active"><div>🏠</div>Home</button>
         <button class="nav-item" onclick="alert('Games')"><div>🎮</div>Games</button>
@@ -107,13 +96,29 @@
 
         socket.on('connect', () => {
             console.log('ከዌብሶኬት ጋር ተገናኝቷል!');
+            socket.emit('get_user_balance', { user_id: 12345 });
+        });
+
+        socket.on('balance_update', (data) => {
+            document.getElementById('wallet-balance').innerText = `ብር ${data.balance.toFixed(2)} 👤`;
         });
 
         socket.on('number_called', (data) => {
             document.getElementById('latest-call').innerText = `የተጠራ ቁጥር: ${data.number}`;
         });
 
-        // Generate Bingo Board
+        function makeDeposit() {
+            let amount = prompt("እየገቡበት ያለውን የငብር መጠን ያስገቡ (ETB):", "100");
+            let tx_id = prompt("የቴሌብር/ባንክ የትራንዛክሽን ቁጥር (Transaction ID) ያስገቡ:", "TX123456");
+            if (amount && tx_id) {
+                socket.emit('submit_deposit', { user_id: 12345, amount: parseFloat(amount), tx_id: tx_id, method: 'Telebirr' });
+            }
+        }
+
+        socket.on('deposit_response', (data) => {
+            alert(data.message);
+        });
+
         const board = document.getElementById('bingo-board');
         for (let i = 1; i <= 25; i++) {
             const cell = document.createElement('div');
@@ -123,7 +128,6 @@
             board.appendChild(cell);
         }
 
-        // Toggle Profile Sidebar
         function toggleProfile() {
             const sidebar = document.getElementById('profileSidebar');
             sidebar.classList.toggle('open');
