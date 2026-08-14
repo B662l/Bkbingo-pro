@@ -3,41 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>bkbingo pro - ቢንጎ ጨዋታ</title>
+    <title>bkbingo pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
         body { background-color: #121212; color: #ffffff; padding-bottom: 70px; }
         
+        /* Auth Screen */
+        #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: #121212; position: fixed; width: 100%; top: 0; left: 0; z-index: 2000; }
+        .auth-card { background: #1e1e1e; padding: 30px; border-radius: 12px; width: 100%; max-width: 380px; border: 1px solid #333; }
+        .auth-logo { font-size: 24px; font-weight: bold; color: #2ecc71; text-align: center; margin-bottom: 20px; }
+        .tab-btns { display: flex; margin-bottom: 20px; border-bottom: 2px solid #333; }
+        .tab-btn { flex: 1; background: none; border: none; color: #aaa; padding: 10px; font-size: 15px; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { color: #2ecc71; border-bottom: 2px solid #2ecc71; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; color: #ccc; }
+        .form-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #2c3e50; color: #fff; font-size: 15px; }
+        .btn-submit { width: 100%; padding: 12px; background-color: #2ecc71; color: #121212; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .form-sec { display: none; }
+        .form-sec.active { display: block; }
+
+        /* Main App Interface */
+        #main-app { display: none; }
         .header { background: #1e1e1e; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .logo { font-size: 20px; font-weight: bold; color: #2ecc71; }
-        .user-balance { background: #2c3e50; padding: 8px 15px; border-radius: 20px; font-size: 14px; color: #f39c12; cursor: pointer; }
+        .logo { font-size: 18px; font-weight: bold; color: #2ecc71; }
+        .user-balance { background: #2c3e50; padding: 8px 12px; border-radius: 20px; font-size: 13px; color: #f39c12; cursor: pointer; }
 
         .action-buttons { display: flex; gap: 10px; padding: 15px; }
-        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; text-align: center; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; text-align: center; }
         .btn-deposit { background-color: #2ecc71; color: #fff; }
         .btn-withdraw { background-color: #2c3e50; color: #fff; border: 1px solid #444; }
 
+        /* Game Area */
         .game-container { padding: 15px; text-align: center; }
-        .current-number { font-size: 32px; color: #2ecc71; margin: 15px 0; font-weight: bold; background: #1e1e1e; padding: 15px; border-radius: 12px; border: 1px solid #333; }
+        .notice-box { background: #e74c3c; color: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; display: none; }
+        .current-number { font-size: 28px; color: #2ecc71; margin: 15px 0; font-weight: bold; background: #1e1e1e; padding: 15px; border-radius: 12px; border: 1px solid #333; }
         
-        .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-width: 450px; margin: 0 auto; }
-        .cell { background: #1e1e1e; border: 1px solid #333; padding: 18px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: 0.2s; color: #fff; }
-        .cell.selected { background: #2ecc71; color: #121212; font-weight: bold; transform: scale(1.05); }
+        .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-width: 400px; margin: 0 auto; }
+        .cell { background: #1e1e1e; border: 1px solid #333; padding: 18px 0; font-size: 16px; border-radius: 8px; cursor: pointer; color: #fff; }
+        .cell.selected { background: #2ecc71; color: #121212; font-weight: bold; }
 
+        /* Sidebar Menu */
         .sidebar { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: #1a1a1a; box-shadow: -5px 0 15px rgba(0,0,0,0.7); transition: 0.3s; z-index: 1000; padding: 20px; border-left: 1px solid #333; }
         .sidebar.open { right: 0; }
         .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #333; padding-bottom: 15px; }
         .close-btn { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; }
-        
-        .profile-info { display: flex; align-items: center; gap: 12px; background: #2c3e50; padding: 12px; border-radius: 10px; margin-bottom: 20px; }
-        .profile-avatar { width: 45px; height: 45px; background: #1abc9c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        
         .menu-list { list-style: none; }
         .menu-item { padding: 14px 0; border-bottom: 1px solid #2a2a2a; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #ccc; font-size: 15px; }
         .menu-item:hover { color: #2ecc71; }
-        .menu-item.logout { color: #e74c3c; margin-top: 20px; border: none; font-weight: bold; }
 
+        /* Bottom Nav Bar */
         .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #181818; display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #333; z-index: 999; }
         .nav-item { text-align: center; color: #aaa; font-size: 12px; cursor: pointer; text-decoration: none; background: none; border: none; }
         .nav-item.active { color: #2ecc71; }
@@ -46,72 +61,149 @@
 </head>
 <body>
 
-    <div class="header">
-        <div class="logo">bkbingo pro</div>
-        <div class="user-balance" id="wallet-balance" onclick="toggleProfile()">ብር 100.00 👤</div>
-    </div>
+    <!-- 1. SIGN UP & SIGN IN SCREEN -->
+    <div id="auth-screen">
+        <div class="auth-card">
+            <div class="auth-logo">bkbingo pro</div>
+            <div class="tab-btns">
+                <button class="tab-btn active" onclick="switchAuthTab('signin')">ግባ (Sign In)</button>
+                <button class="tab-btn" onclick="switchAuthTab('signup')">ተመዝገብ (Sign Up)</button>
+            </div>
 
-    <div class="action-buttons">
-        <button class="btn btn-deposit" onclick="makeDeposit()">Deposit</button>
-        <button class="btn btn-withdraw" onclick="alert('የገንዘብ ማውጣት (Withdraw) ጥያቄ')">Withdraw</button>
-    </div>
+            <!-- Sign In Form -->
+            <div id="signin-sec" class="form-sec active">
+                <form onsubmit="handleSignIn(event)">
+                    <div class="form-group">
+                        <label>የስልክ ቁጥር</label>
+                        <input type="text" id="login-phone" placeholder="09xxxxxxxx" required>
+                    </div>
+                    <button type="submit" class="btn-submit">ግባ</button>
+                </form>
+            </div>
 
-    <div class="game-container">
-        <div class="current-number" id="latest-call">የተጠራ ቁጥር: --</div>
-        <div class="board" id="bingo-board"></div>
-    </div>
-
-    <div class="sidebar" id="profileSidebar">
-        <div class="sidebar-header">
-            <h3>መግቢያ / አካውንት</h3>
-            <button class="close-btn" onclick="toggleProfile()">✕</button>
-        </div>
-        
-        <div class="profile-info">
-            <div class="profile-avatar">👤</div>
-            <div>
-                <div style="font-weight: bold; color: #fff;">ተጠቃሚ</div>
-                <div style="font-size: 13px; color: #aaa;">@bkbingo_user</div>
+            <!-- Sign Up Form -->
+            <div id="signup-sec" class="form-sec">
+                <form onsubmit="handleSignUp(event)">
+                    <div class="form-group">
+                        <label>ሙሉ ስም</label>
+                        <input type="text" id="reg-name" placeholder="ስምዎን ያስገቡ" required>
+                    </div>
+                    <div class="form-group">
+                        <label>የስልክ ቁጥር</label>
+                        <input type="text" id="reg-phone" placeholder="09xxxxxxxx" required>
+                    </div>
+                    <button type="submit" class="btn-submit">መዝገብ</button>
+                </form>
             </div>
         </div>
-
-        <ul class="menu-list">
-            <li class="menu-item" onclick="alert('My Profile')"><span>👤 My Profile</span> <span>›</span></li>
-            <li class="menu-item" onclick="alert('Wallet')"><span>💳 Wallet</span> <span>›</span></li>
-            <li class="menu-item" onclick="alert('Transactions')"><span>🔄 Transactions</span> <span>›</span></li>
-            <li class="menu-item" onclick="alert('Game History')"><span>🕒 Game History</span> <span>›</span></li>
-            <li class="menu-item logout" onclick="alert('ውጣ (Log Out)')"><span>🚪 Log Out</span></li>
-        </ul>
     </div>
 
-    <div class="nav-bar">
-        <button class="nav-item active"><div>🏠</div>Home</button>
-        <button class="nav-item" onclick="alert('Games')"><div>🎮</div>Games</button>
-        <button class="nav-item" onclick="alert('Slip')"><div>📄</div>Slip</button>
-        <button class="nav-item" onclick="toggleProfile()"><div>👤</div>Profile</button>
+    <!-- 2. MAIN APP INTERFACE -->
+    <div id="main-app">
+        <div class="header">
+            <div class="logo">bkbingo pro</div>
+            <div class="user-balance" id="wallet-balance" onclick="toggleSidebar()">ብር 0.00 👤</div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-deposit" onclick="makeDeposit()">Deposit</button>
+            <button class="btn btn-withdraw" onclick="alert('Withdraw ጥያቄ')">Withdraw</button>
+        </div>
+
+        <div class="game-container">
+            <div class="notice-box" id="deposit-notice">⚠️ ጨዋታውን ለመጀመር መጀመሪያ አካውንትዎን በዲፖዚት (Deposit) መሙላት አለብዎት!</div>
+            <div class="current-number" id="latest-call">የተጠራ ቁጥር: --</div>
+            <div class="board" id="bingo-board"></div>
+        </div>
+
+        <!-- Sidebar Menu -->
+        <div class="sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <h3>ሜኑ (Menu)</h3>
+                <button class="close-btn" onclick="toggleSidebar()">✕</button>
+            </div>
+            <ul class="menu-list">
+                <li class="menu-item" onclick="alert('My Profile')"><span>👤 My Profile</span> <span>›</span></li>
+                <li class="menu-item" onclick="alert('Wallet')"><span>💳 Wallet</span> <span>›</span></li>
+                <li class="menu-item" onclick="alert('Transactions')"><span>🔄 Transactions</span> <span>›</span></li>
+                <li class="menu-item" onclick="alert('Game History')"><span>🕒 Game History</span> <span>›</span></li>
+                <li class="menu-item" style="color:#e74c3c;" onclick="location.reload()"><span>🚪 Log Out</span></li>
+            </ul>
+        </div>
+
+        <!-- Bottom Nav Bar -->
+        <div class="nav-bar">
+            <button class="nav-item active"><div>🏠</div>Home</button>
+            <button class="nav-item" onclick="alert('Games')"><div>🎮</div>Games</button>
+            <button class="nav-item" onclick="alert('Slip')"><div>📄</div>Slip</button>
+            <button class="nav-item" onclick="toggleSidebar()"><div>👤</div>Profile</button>
+        </div>
     </div>
 
     <script>
         const socket = io();
+        let currentUser = { id: 12345, balance: 0.0 };
 
-        socket.on('connect', () => {
-            console.log('ከዌብሶኬት ጋር ተገናኝቷል!');
-            socket.emit('get_user_balance', { user_id: 12345 });
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.form-sec').forEach(s => s.classList.remove('active'));
+            if (tab === 'signin') {
+                document.getElementById('signin-sec').classList.add('active');
+                event.target.classList.add('active');
+            } else {
+                document.getElementById('signup-sec').classList.add('active');
+                event.target.classList.add('active');
+            }
+        }
+
+        function handleSignUp(e) {
+            e.preventDefault();
+            let name = document.getElementById('reg-name').value;
+            let phone = document.getElementById('reg-phone').value;
+            socket.emit('register_user', { user_id: Math.floor(Math.random()*100000), name: name, phone: phone });
+        }
+
+        function handleSignIn(e) {
+            e.preventDefault();
+            let phone = document.getElementById('login-phone').value;
+            socket.emit('login_user', { phone: phone });
+        }
+
+        socket.on('auth_response', (data) => {
+            if (data.status === 'success') {
+                currentUser.id = data.user_id || 12345;
+                currentUser.balance = data.balance;
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                updateBalanceDisplay(currentUser.balance);
+            }
         });
 
         socket.on('balance_update', (data) => {
-            document.getElementById('wallet-balance').innerText = `ብር ${data.balance.toFixed(2)} 👤`;
+            currentUser.balance = data.balance;
+            updateBalanceDisplay(currentUser.balance);
         });
 
-        socket.on('number_called', (data) => {
-            document.getElementById('latest-call').innerText = `የተጠራ ቁጥር: ${data.number}`;
-        });
+        function updateBalanceDisplay(bal) {
+            document.getElementById('wallet-balance').innerText = `ብር ${bal.toFixed(2)} 👤`;
+            let notice = document.getElementById('deposit-notice');
+            let board = document.getElementById('bingo-board');
+            if (bal <= 0) {
+                notice.style.display = 'block';
+                board.style.opacity = '0.4';
+                board.style.pointerEvents = 'none';
+            } else {
+                notice.style.display = 'none';
+                board.style.opacity = '1';
+                board.style.pointerEvents = 'auto';
+            }
+        }
 
         function makeDeposit() {
-            let amount = prompt("እየገቡበት ያለውን የငብር መጠን ያስገቡ (ETB):", "100");
-            let tx_id = prompt("የቴሌብር/ባንክ የትራንዛክሽን ቁጥር (Transaction ID) ያስገቡ:", "TX123456");
+            let amount = prompt("የሚገቡበትን የငብር መጠን ያስገቡ (ETB):", "100");
+            let tx_id = prompt("የቴሌብር/ባንክ Transaction ID ያስገቡ:", "TX98765");
             if (amount && tx_id) {
-                socket.emit('submit_deposit', { user_id: 12345, amount: parseFloat(amount), tx_id: tx_id, method: 'Telebirr' });
+                socket.emit('submit_deposit', { user_id: currentUser.id, amount: parseFloat(amount), tx_id: tx_id, method: 'Telebirr' });
             }
         }
 
@@ -119,18 +211,28 @@
             alert(data.message);
         });
 
+        socket.on('number_called', (data) => {
+            document.getElementById('latest-call').innerText = `የተጠራ ቁጥር: ${data.number}`;
+        });
+
+        // Generate Bingo Board
         const board = document.getElementById('bingo-board');
         for (let i = 1; i <= 25; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
             cell.innerText = i;
-            cell.onclick = () => cell.classList.toggle('selected');
+            cell.onclick = () => {
+                if (currentUser.balance > 0) {
+                    cell.classList.toggle('selected');
+                } else {
+                    alert("እባክዎ መጀመሪያ አካውንትዎን ይሙሉ!");
+                }
+            };
             board.appendChild(cell);
         }
 
-        function toggleProfile() {
-            const sidebar = document.getElementById('profileSidebar');
-            sidebar.classList.toggle('open');
+        function toggleSidebar() {
+            document.getElementById('appSidebar').classList.toggle('open');
         }
     </script>
 </body>
