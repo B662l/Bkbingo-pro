@@ -6,6 +6,7 @@ from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 import telebot
 
+# የቦት ቶከኖችዎን እዚህ ያስገቡ
 BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 SUPPORT_BOT_TOKEN = "YOUR_SUPPORT_BOT_TOKEN"
 
@@ -19,6 +20,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 db_lock = Lock()
 users_db = {}
 cards_database = {}
+
+WEBAPP_URL = "https://bkbingo-pro.onrender.com"
 
 def generate_sample_cards():
     global cards_database
@@ -43,11 +46,30 @@ def index():
 def handle_get_balance(data):
     uid = data.get('user_id', 12345)
     balance = 100.0
-    if uid in users_db:
-        balance = users_db[uid]["balance"]
+    with db_lock:
+        if uid in users_db:
+            balance = users_db[uid]["balance"]
+        else:
+            users_db[uid] = {"id": uid, "name": "Player", "balance": balance, "history": []}
     emit('balance_update', {'balance': balance})
 
-WEBAPP_URL = "https://bkbingo-pro.onrender.com"
+@socketio.on('submit_deposit')
+def handle_submit_deposit(data):
+    uid = data.get('user_id')
+    amount = float(data.get('amount', 0))
+    tx_id = data.get('tx_id', '')
+    method = data.get('method', 'Telebirr')
+    
+    with db_lock:
+        if uid in users_db:
+            # ለጊዜው ክፍያው እንደደረሰ ገቢ በማድረግ ማስተካከል ይቻላል (ወይም በ Admin ማረጋገጫ)
+            users_db[uid]["balance"] += amount
+            users_db[uid]["history"].append(f"Deposit: +{amount} ETB via {method} (Tx: {tx_id})")
+            new_balance = users_db[uid]["balance"]
+            emit('balance_update', {'balance': new_balance}, room=request.sid)
+            emit('deposit_response', {'status': 'success', 'message': 'ክፍያዎ በተሳካ ሁኔታ ተመዝግቧል!', 'balance': new_balance})
+        else:
+            emit('deposit_response', {'status': 'error', 'message': 'ተጠቃሚው አልተገኘም!'})
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -70,17 +92,33 @@ def send_welcome(message):
 def callback_deposit(call):
     deposit_text = (
         "💳 <b>አካውንት ለመሙላት (Deposit)፦</b>\n\n"
-        "🔹 <b>ቴሌብር:</b> 09xxxxxxxx (ብርቱኩን አበበ)\n"
-        "🔹 <b>ንግድ ባንክ:</b> 1000xxxxxxxxxx\n\n"
-        "ክፍያው ሲረጋገጥ ለድጋፍ ቦታችን ይላኩ!"
+        "🔹 <b>ቴሌብር (Telebirr):</b> 0912345678 (Biruk Reta)\n"
+        "🔹 <b>ንግድ ባንክ (CBE):</b> 1000123456789 (Biruk Reta)\n\n"
+        "ብር ከላኩ በኋላ የትራንዛክሽን ቁጥሩን (Transaction ID) እና ስምዎን በመተግበሪያው (Mini App) ውስጥ ባለው የዲፖዚት ፎርም በመሙላት አካውንትዎን ማفረስት ይችላሉ!"
     )
     bot.answer_callback_query(call.id)
     bot.send_message(call.message.chat.id, deposit_text, parse_mode="HTML")
 
+# የ Support Bot መልዕክቶችን ማስተናገጃ
+@support_bot.message_handler(commands=['start'])
+def support_welcome(message):
+    name = message.from_user.first_name
+    support_bot.send_message(
+        message.chat.id, 
+        f"ሰላም <b>{name}</b>! ወደ <b>BKBINGO PRO</b> የደንበኛ እርዳታ ማዕከል በሰላም መጡ። ጥያቄዎን ወይም ያጋጠመዎትን ችግር ይጻፉልን፣ ወዲያውኑ ምላሽ እንሰጣለን።", 
+        parse_mode="HTML"
+    )
+
 if __name__ == '__main__':
+    # ዋናውን ቦት ማሰኬጃ ቴሬድ
     bot_thread = Thread(target=lambda: bot.infinity_polling(none_stop=True))
     bot_thread.daemon = True
     bot_thread.start()
+    
+    # የ Support ቦት ማሰኬጃ ቴሬድ
+    support_thread = Thread(target=lambda: support_bot.infinity_polling(none_stop=True))
+    support_thread.daemon = True
+    support_thread.start()
     
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host='0.0.0.0', port=port)
