@@ -2,3 +2,5 @@ Flask==3.0.2
 Flask-SocketIO==5.3.6
 PyTelegramBotAPI==4.16.1
 gunicorn==21.2.0
+python-socketio>=5.0.2
+requests
